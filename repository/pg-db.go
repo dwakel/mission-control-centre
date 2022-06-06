@@ -31,6 +31,11 @@ func (driver *PostgresDBDriver) ConnectPostgresDB() (*gorm.DB, error) {
 	//	db, err = gorm.Open(postgres.Open(config.DBurl), &gorm.Config{})
 	//} else {
 	//	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	//dsn := fmt.Sprintf(
+	//	"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+	//	"localhost", driver.config.Port, "postgres", "1", driver.config.Database, "disable",
+	//)
 	//}
 	database, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
