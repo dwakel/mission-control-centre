@@ -8,6 +8,7 @@ import (
 	"log"
 	"mission-control-center/controllers"
 	"mission-control-center/repository"
+	"mission-control-center/services"
 	"net/http"
 	"os"
 	"os/signal"
@@ -31,15 +32,37 @@ func main() {
 	logger := log.New(os.Stdout, "Template Service: ", log.LstdFlags)
 	//Setup database and repository
 	db := repository.NewPostgresDB(&dbConfig, logger)
-	db.ConnectPostgresDB()
 
-	hb := controllers.NewHeartbeat(logger)
+	//////////Repositories
+	repo, _ := db.ConnectPostgresDB()
+	applicationRepository := repository.NewApplicationRepo(logger, repo)
+	metadataRepository := repository.NewMetadataRepository(logger, repo)
+
+	/////////////Services
+	metadataService := services.NewMetadataService(logger, &metadataRepository)
+
+	//Inject dependencies into controllers
+	heartbeatController := controllers.NewHeartbeat(logger)
+	applicationController := controllers.NewApplicationsController(logger, &applicationRepository)
+	metadataController := controllers.NewMetadataController(logger, &metadataRepository, &metadataService)
 
 	sm := mux.NewRouter()
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
 
 	// HANDLE ROUTES
-	getRouter.HandleFunc("/{heartbeat|healthcheck}", hb.Heartbeat)
+	getRouter.HandleFunc("/heartbeat", heartbeatController.Heartbeat)
+
+	getRouter.HandleFunc("/applications/{id}", applicationController.Get)
+	getRouter.HandleFunc("/applications", applicationController.List)
+	postRouter.HandleFunc("/applications", applicationController.Create)
+
+	getRouter.HandleFunc("/metadata/{id}", metadataController.Get)
+	getRouter.HandleFunc("/metadata", metadataController.List)
+	postRouter.HandleFunc("/metadata", metadataController.Create)
+	putRouter.HandleFunc("/metadata/{id}", metadataController.Update)
+	getRouter.HandleFunc("/metadata/{id}/history", metadataController.GetHistory)
 
 	//todo: Fetch from configuration file (MAY NOT BE NECESSARY)
 	server := &http.Server{
